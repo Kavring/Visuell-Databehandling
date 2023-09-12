@@ -53,12 +53,8 @@ fn offset<T>(n: u32) -> *const c_void {
 
 
 // == // Generate your VAO here
-unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 {
-    // Implement me!
+unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>) -> u32 {
 
-    // Also, feel free to delete comments :)
-
-    // This should:
     // * Generate a VAO and bind it
     let mut vao_id:u32 =0;
     gl::GenVertexArrays(1, &mut vao_id);
@@ -77,14 +73,39 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 {
     );
     // * Configure a VAP for the data and enable it
     gl::VertexAttribPointer(
-        0, // 0 or add u32?
+        0,
         3,
         gl::FLOAT,  //should match data type from buffer data
         gl::FALSE,
         0,
         std::ptr::null()
     );
+
+    // VBO for color vector
+    let mut vbo_col:u32=0;
+    gl::GenBuffers(1, &mut vbo_col);
+    gl::BindBuffer(gl::ARRAY_BUFFER, vbo_col);
+
+    // * Fill it with data
+    gl::BufferData(
+        gl::ARRAY_BUFFER, 
+        byte_size_of_array(&colors) as isize, //ind or vert?
+        colors.as_ptr().cast(),      //might not point correctly (ind or vert?)
+        gl::STATIC_DRAW
+    );
+    // * Configure a VAP for the data and enable it
+    gl::VertexAttribPointer(
+        1,
+        4,
+        gl::FLOAT,  //should match data type from buffer data
+        gl::FALSE,
+        0,
+        std::ptr::null()
+    );
+
+
     gl::EnableVertexAttribArray(0);
+    gl::EnableVertexAttribArray(1);
     // * Generate a IBO and bind it
     let mut ibo_id:u32=0;
     gl::GenBuffers(1, &mut ibo_id);
@@ -95,9 +116,6 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 {
         indices.as_ptr().cast(),
         gl::STATIC_DRAW
     );
-
-    // * Fill it with data
-
 
     // * Return the ID of the VAO
     return vao_id;
@@ -134,7 +152,7 @@ fn main() {
     let window_size = Arc::clone(&arc_window_size);
 
     // Spawn a separate thread for rendering, so event handling doesn't block rendering
-    let render_thread = thread::spawn(move || {
+    let render_thread = thread::spawn(move || -> ! {
         // Acquire the OpenGL Context and load the function pointers.
         // This has to be done inside of the rendering thread, because
         // an active OpenGL context cannot safely traverse a thread boundary
@@ -199,16 +217,39 @@ fn main() {
 
         ];
         
-        
         let indices: Vec<u32> = vec!
         [0, 4, 2,
         3, 1, 5,
         6, 7, 8,
         9,10, 11,
         12,13,14];
+
+        let colors: Vec<f32> = vec!
+        [
+        1.0, 0.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+
+        1.0, 0.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+
+        1.0, 0.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+
+        1.0, 0.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+
+        1.0, 0.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+        ];
+
         
         let my_vao = unsafe { 
-            create_vao(&vertices, &indices)
+            create_vao(&vertices, &indices, &colors)
         };
         
         // == // Set up your shaders here
