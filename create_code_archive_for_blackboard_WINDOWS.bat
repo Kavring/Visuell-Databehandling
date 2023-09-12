@@ -11,4 +11,5 @@ if exist source.zip (
     -x!resources/helicopter.obj ^
     -x!resources/lunarsurface.obj ^
     -x!resources/.gitkeep
+
 pause
