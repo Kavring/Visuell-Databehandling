@@ -15,6 +15,7 @@ use std::sync::{Mutex, Arc, RwLock};
 mod shader;
 mod util;
 
+use glm::{Vec3, vec4};
 use glutin::event::{Event, WindowEvent, DeviceEvent, KeyboardInput, ElementState::{Pressed, Released}, VirtualKeyCode::{self, *}};
 use glutin::event_loop::ControlFlow;
 
@@ -53,63 +54,42 @@ fn offset<T>(n: u32) -> *const c_void {
 
 
 // == // Generate your VAO here
-unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>) -> u32 {
+unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, color: &Vec<f32>) -> u32 {
 
-    // * Generate a VAO and bind it
+    // This should:
+    // * Generate a VAO (vertex array object) and bind it
     let mut vao_id:u32 =0;
     gl::GenVertexArrays(1, &mut vao_id);
     gl::BindVertexArray(vao_id);
 
-    // * Generate a VBO and bind it
+    // * Generate a VBO (Vertex buffer object) and bind it
     let mut vbo_id:u32=0;
     gl::GenBuffers(1, &mut vbo_id);
     gl::BindBuffer(gl::ARRAY_BUFFER, vbo_id);
     // * Fill it with data
     gl::BufferData(
         gl::ARRAY_BUFFER, 
-        byte_size_of_array(&vertices) as isize, //ind or vert?
-        vertices.as_ptr().cast(),      //might not point correctly (ind or vert?)
+        byte_size_of_array(&vertices) as isize, // vert?
+        vertices.as_ptr().cast(),     
         gl::STATIC_DRAW
     );
+
     // * Configure a VAP for the data and enable it
     gl::VertexAttribPointer(
-        0,
+        0, // 0 or add u32?
         3,
         gl::FLOAT,  //should match data type from buffer data
         gl::FALSE,
         0,
         std::ptr::null()
     );
-
-    // VBO for color vector
-    let mut vbo_col:u32=0;
-    gl::GenBuffers(1, &mut vbo_col);
-    gl::BindBuffer(gl::ARRAY_BUFFER, vbo_col);
-
-    // * Fill it with data
-    gl::BufferData(
-        gl::ARRAY_BUFFER, 
-        byte_size_of_array(&colors) as isize, //ind or vert?
-        colors.as_ptr().cast(),      //might not point correctly (ind or vert?)
-        gl::STATIC_DRAW
-    );
-    // * Configure a VAP for the data and enable it
-    gl::VertexAttribPointer(
-        1,
-        4,
-        gl::FLOAT,  //should match data type from buffer data
-        gl::FALSE,
-        0,
-        std::ptr::null()
-    );
-
-
     gl::EnableVertexAttribArray(0);
-    gl::EnableVertexAttribArray(1);
+
     // * Generate a IBO and bind it
     let mut ibo_id:u32=0;
     gl::GenBuffers(1, &mut ibo_id);
     gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo_id);
+    //* fill IBO with data
     gl::BufferData(
         gl::ELEMENT_ARRAY_BUFFER,
         byte_size_of_array(&indices),
@@ -117,9 +97,38 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>)
         gl::STATIC_DRAW
     );
 
+    //Color Generate, bind and fill with data, VBO for color
+    let mut color_id:u32=0;
+    gl::GenBuffers(1, &mut color_id);
+    gl::BindBuffer(gl::ARRAY_BUFFER, color_id);
+    gl::BufferData(
+        gl::ARRAY_BUFFER,
+        byte_size_of_array(&color),
+        color.as_ptr().cast(),
+        gl::STATIC_DRAW
+    );
+
+    gl::VertexAttribPointer(
+        1,
+        4,
+        gl::FLOAT,
+        gl::FALSE,
+        0,
+        std::ptr::null()
+    );
+    gl::EnableVertexAttribArray(1);
+
+
+
+
+
+
+
     // * Return the ID of the VAO
     return vao_id;
 }
+
+
 
 
 fn main() {
@@ -133,7 +142,7 @@ fn main() {
         .with_vsync(true);
     let windowed_context = cb.build_windowed(wb, &el).unwrap();
     // Uncomment these if you want to use the mouse for controls, but want it to be confined to the screen and/or invisible.
-    // windowed_context.window().set_cursor_grab(true).expect("failed to grab cursor");
+    // windowed_context.window().set_cursor_grab(true).expect("BLENDfailed to grab cursor");
     // windowed_context.window().set_cursor_visible(false);
 
     // Set up a shared vector for keeping track of currently pressed keys
@@ -152,7 +161,7 @@ fn main() {
     let window_size = Arc::clone(&arc_window_size);
 
     // Spawn a separate thread for rendering, so event handling doesn't block rendering
-    let render_thread = thread::spawn(move || -> ! {
+    let render_thread = thread::spawn(move || {
         // Acquire the OpenGL Context and load the function pointers.
         // This has to be done inside of the rendering thread, because
         // an active OpenGL context cannot safely traverse a thread boundary
@@ -168,7 +177,7 @@ fn main() {
         unsafe {
             gl::Enable(gl::DEPTH_TEST);
             gl::DepthFunc(gl::LESS);
-            gl::Enable(gl::CULL_FACE);
+            //gl::Enable(gl::CULL_FACE);
             gl::Disable(gl::MULTISAMPLE);
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
@@ -185,16 +194,39 @@ fn main() {
 
         let num_tre: i32= 5;
         let count_tri: i32 = num_tre*3;
+            
+
         
         let vertices: Vec<f32> = vec!
-
-        /*
+        /* 
         [0.6, -0.8, -1.2,
         0.0, 0.4, 0.0,
         -0.8, -0.2, 1.2];
         */
+        [
+         -0.6, 0.0, 0.5,
+         0.0, 0.0, 0.2,
+         -0.3, 0.6, 0.5,
+
+         -0.4, 0.0, -0.1,
+         0.2, 0.0, -0.5,
+         -0.1, 0.6, -0.5,
+
+         -0.5, -0.1, -0.9,
+         0.1, -0.1, -0.9,
+         -0.2, 0.5, -0.6,
+
+         -10.6,-5.0, -10.0,
+         20.4, -4.0, -10.0,
+         0.5, 15.6, -10.0,
+
+         -10.6,-5.0, 10.0,
+         20.4, -4.0, 10.0,
+         0.5, 21.6, 10.0
+            
+        ];
         
-        
+        /*
         [-0.6, 0.4, 0.0,
          -0.4, 0.4, 0.0,
          -0.5, 0.6, 0.0,
@@ -208,7 +240,7 @@ fn main() {
          -0.4, 0.3, 0.0,
 
          -0.3, 0.1, 0.0,
-         -0.0, 0.1, 0.0,
+         -0.0, 0.2, 0.0,
          -0.2, 0.3, 0.0,
 
          -0.3, -0.2, 0.0,
@@ -216,42 +248,55 @@ fn main() {
          -0.2, 0.0, 0.0
 
         ];
+        */
         
         let indices: Vec<u32> = vec!
-        [0, 4, 2,
-        3, 1, 5,
+        [0, 1, 2,
+        3, 4, 5,
         6, 7, 8,
-        9,10, 11,
-        12,13,14];
+        9, 10,11,
+        12, 13, 14];
 
-        let colors: Vec<f32> = vec!
-        [
-        1.0, 0.0, 0.0, 1.0,
-        0.0, 1.0, 0.0, 1.0,
-        0.0, 0.0, 1.0, 1.0,
+        let color: Vec<f32> = vec![
+            0.0, 0.0, 1.0, 0.4,
+            0.0, 0.0, 1.0, 0.4,
+            0.0, 0.0, 1.0, 0.4,
 
-        1.0, 0.0, 0.0, 1.0,
-        0.0, 1.0, 0.0, 1.0,
-        0.0, 0.0, 1.0, 1.0,
+            1.0, 0.0, 0.0, 0.6,
+            1.0, 0.0, 0.0, 0.6,
+            1.0, 0.0, 0.0, 0.6,
 
-        1.0, 0.0, 0.0, 1.0,
-        0.0, 1.0, 0.0, 1.0,
-        0.0, 0.0, 1.0, 1.0,
+            0.0, 1.0, 0.0, 0.5,
+            0.0, 1.0, 0.0, 0.5,
+            0.0, 1.0, 0.0, 0.5,
 
-        1.0, 0.0, 0.0, 1.0,
-        0.0, 1.0, 0.0, 1.0,
-        0.0, 0.0, 1.0, 1.0,
+            1.0, 0.4, 0.3, 1.0,
+            0.1, 1.0, 1.0, 1.0,
+            0.1, 0.0, 1.0, 1.0,
 
-        1.0, 0.0, 0.0, 1.0,
-        0.0, 1.0, 0.0, 1.0,
-        0.0, 0.0, 1.0, 1.0,
+            0.5, 1.0, 0.0, 1.0,
+            0.5, 0.4, 1.0, 1.0,
+            1.0, 0.0, 1.0, 1.0
+
+            // 0.9, 0.0, 0.8, 1.0,
+            // 0.0, 0.8, 0.8, 1.0,
+            // 0.9, 0.8, 0.0, 1.0
+            // //,
+
+            // 0.4, 0.0, 0.1, 1.0,
+            // 0.9, 0.9, 0.0, 1.0,
+            // 0.0, 0.5, 0.6, 1.0,
+
+            // 1.0, 0.0, 0.0, 1.0,
+            // 0.0, 1.0, 0.0, 1.0,
+            // 0.0, 0.0, 1.0, 1.0
         ];
-
         
         let my_vao = unsafe { 
-            create_vao(&vertices, &indices, &colors)
+            create_vao(&vertices, &indices, &color)
         };
-        
+
+
         // == // Set up your shaders here
         let shader = unsafe {
             shader::ShaderBuilder::new()
@@ -260,15 +305,24 @@ fn main() {
                 .link()
         };
 
+
+        // // !!!!!!!!!!!!!!!  AFFINE MATRIX TRANSFORMATIONS !!!!!!!!
+            //denne skal inn i shaderen, usikker på metoden fortsatt.
+        // mat4x4 AffineTM = {{1.0 0.0, 0.0, 0.0},{0.0, 1.0, 0.0, 0.0},{0.0, 0.0, 1.0, 0.0},{0.0, 0.0, 0.0, 1.0}};
+
+
+
+        // //choosing which transformation matrix to send to the Shader:
+
+        // let AffineTM = M;
+
         // Basic usage of shader helper:
         // The example code below creates a 'shader' object.
         // It which contains the field `.program_id` and the method `.activate()`.
         // The `.` in the path is relative to `Cargo.toml`.
         // This snippet is not enough to do the exercise, and will need to be modified (outside
         // of just using the correct path), but it only needs to be called once
-        unsafe{
-            shader.activate()
-        };
+
 ///////
         //unsafe{
         //gl::BindVertexArray(my_vao) 
@@ -286,7 +340,22 @@ fn main() {
 
 
         // Used to demonstrate keyboard handling for exercise 2.
-        let mut _arbitrary_number = 0.0; // feel free to remove
+        //motion variables:
+        let mut transx_val: f32 = 0.0;
+        let mut transy_val: f32 = 0.0;
+        let mut transz_val: f32 = 0.0;
+        let mut rotx_val: f32 =0.0;
+        let mut roty_val: f32 =0.0;
+
+        let trans_speed: f32 = 3.0;
+        let rot_speed: f32 = 1.0;
+
+        let mut xVec: glm::Vec4 = glm::vec4(1.0, 0.0, 0.0, 0.0);
+        let mut yVec: glm::Vec4 = glm::vec4(0.0, 1.0, 0.0, 0.0);
+        let mut zVec: glm::Vec4 = glm::vec4(0.0, 0.0, 1.0, 0.0);
+
+
+
 
 
         // The main rendering loop
@@ -299,17 +368,26 @@ fn main() {
             let delta_time = now.duration_since(previous_frame_time).as_secs_f32();
             previous_frame_time = now;
 
+
+
             // Handle resize events
             if let Ok(mut new_size) = window_size.lock() {
                 if new_size.2 {
-                    context.resize(glutin::dpi::PhysicalSize::new(new_size.0, new_size.1));
-                    window_aspect_ratio = new_size.0 as f32 / new_size.1 as f32;
-                    (*new_size).2 = false;
+                    // 0.4, 0.0, 0.1, 1.0,
+                    // 0.9, 0.9, 0.0, 1.0,
+                    // 0.0, 0.5, 0.6, 1.0,
+        
+                    // 1.0, 0.0, 0.0, 1.0,
+                    // 0.0, 1.0, 0.0, 1.0,
+                    // 0.0, 0.0, 1.0, 1.0
                     println!("Window was resized to {}x{}", new_size.0, new_size.1);
                     unsafe { gl::Viewport(0, 0, new_size.0 as i32, new_size.1 as i32); }
                 }
             }
 
+            // // Handle keyboard input
+
+            //key press handlers:
             // Handle keyboard input
             if let Ok(keys) = pressed_keys.lock() {
                 for key in keys.iter() {
@@ -318,11 +396,44 @@ fn main() {
                         //    https://docs.rs/winit/0.25.0/winit/event/enum.VirtualKeyCode.html
 
                         VirtualKeyCode::A => {
-                            _arbitrary_number += delta_time;
+                            transx_val += delta_time*trans_speed;
                         }
                         VirtualKeyCode::D => {
-                            _arbitrary_number -= delta_time;
+                            transx_val -= delta_time*trans_speed;
                         }
+
+                        VirtualKeyCode::S => {
+                            transy_val += delta_time*trans_speed;
+                        }
+                        VirtualKeyCode::W => {
+                            transy_val -= delta_time*trans_speed;
+                        }
+
+                        VirtualKeyCode::Space => {
+                            transz_val += delta_time*trans_speed;
+                        }
+                        VirtualKeyCode::LShift => {
+                            transz_val -= delta_time*trans_speed;
+                        }
+
+
+                        VirtualKeyCode::Down => {
+                            rotx_val += delta_time*rot_speed;
+                        }
+                        VirtualKeyCode::Up => {
+                            rotx_val -= delta_time*rot_speed;
+                        }
+
+                        VirtualKeyCode::Right => {
+                            roty_val += delta_time*rot_speed;
+                        }
+                        VirtualKeyCode::Left => {
+                            roty_val -= delta_time*rot_speed;
+                        }
+
+
+
+                    
 
 
                         // default handler:
@@ -330,6 +441,9 @@ fn main() {
                     }
                 }
             }
+
+
+
             // Handle mouse movement. delta contains the x and y movement of the mouse since last frame in pixels
             if let Ok(mut delta) = mouse_delta.lock() {
 
@@ -339,14 +453,99 @@ fn main() {
                 *delta = (0.0, 0.0); // reset when done
             }
 
-            // == // Please compute camera transforms here (exercise 2 & 3)
 
+
+                        //
+
+
+
+                        //let s= elapsed.sin();
+                        // let c = elapsed.cos();
+            
+                        // //constants:
+            
+                        // //vectors
+                        //let xVec: glm::Vec3 = glm::vec3(s, 0.0, 0.0);
+                        // let yVec: glm::Vec3 = glm::vec3(0.0, 1.0, 0.0);
+                        // let zVec: glm::Vec3 = glm::vec3(0.0, 0.0, 1.0);
+                        // let iVec: glm::Vec3 = glm::vec3(1.0, 1.0, 1.0);
+                        // // constants
+                        // let angle: f32 = 1.0;
+            
+                        // //Matrices:
+            
+                        // //rotation:
+                        // let rotx: glm::Mat4 = glm::rotation(angle, &xVec);
+                        // let roty: glm::Mat4 = glm::rotation(angle, &yVec);
+                        // let rotz: glm::Mat4 = glm::rotation(angle, &zVec);
+            
+                        // //translation:
+                        // let transx: glm::Mat4 = glm::translation(&xVec);
+                        // let transy: glm::Mat4 = glm::translation(&yVec);
+                        // let transz: glm::Mat4 = glm::translation(&zVec);
+            
+                        //identity
+                        // let identity: glm::Mat4 = glm::identity();
+
+
+                        //
+//start of coding task 4 ø2
+
+            // == // Please compute camera transforms here (exercise 2 & 3)
+            //dealarations
+            //projection deaclaration
+            let projection: glm::Mat4 = glm::perspective(window_aspect_ratio, 90.0, 1.0, 100.0);
+
+
+
+            // // movement axis:
+            // let xVec: glm::Vec3 = glm::vec3(x1, 0.0, 0.0);
+            // let yVec: glm::Vec3 = glm::vec3(0.0, y1, 0.0);
+            // let zVec: glm::Vec3 = glm::vec3(0.0, 0.0, z1);
+            let rot_y:glm::Mat4= glm::rotation(roty_val,&glm::vec3(0.0, 1.0, 0.0));
+            let rot_x:glm::Mat4= glm::rotation(rotx_val,&glm::vec3(1.0, 0.0, 0.0));
+
+            //this is for attempting to fix the translation axies.
+            // xVec = rot_y * rot_x * xVec;
+            // yVec = rot_y * rot_x * yVec;
+
+            // let mut xVec3: glm::Vec3 = xVec;
+            // let yVec3: glm::Vec3 = yVec;
+
+
+            // glm::translation(&xVec3 * transx_val)
+
+
+
+
+
+
+        //  // matrix multiplications goes here:
+
+
+            let mut trans: glm::Mat4= glm::identity(); //final computed matrix
+            trans = glm::translation(&glm::vec3(0.0, 0.0, -2.0)) * trans;
+            trans = glm::translation(&glm::vec3(transx_val, transy_val, transz_val)) * trans;
+            trans = rot_y * trans;
+            trans = rot_x * trans;
+
+            //this must always be last!
+            trans = projection *trans;
+
+
+            unsafe{
+                // sending the matrix to vertex shader
+                gl::UseProgram(shader.program_id);
+                gl::UniformMatrix4fv(3, 1,0, trans.as_ptr());
+            }
+
+//end of my code
 
             unsafe {
                 // Clear the color and depth buffers
-                gl::ClearColor(0.0, 0.00, 0.00, 1.0); // night sky, full opacity
+                gl::ClearColor(0.035, 0.046, 0.078, 1.0); // night sky, full opacity
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-
+                shader.activate();
 
                 // == // Issue the necessary gl:: commands to draw your scene here
                 gl::DrawElements(
